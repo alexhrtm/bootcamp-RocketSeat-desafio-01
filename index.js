@@ -5,9 +5,30 @@ const server = express();
 server.use(express.json());
 
 const projects = [];
+let numOfReqs = 0;
 
-/******ROTAS******/
+// -------------MIDDLEWARES---------------
+// Middleware que checa se o projeto existe
+function checkProjectExists(req, res, next) {
+  const { id } = req.params;
+  const project = projects.find(p => p.id === id);
 
+  !project ? res.status(400).json({ error: "Projeto não encontrado" }) : next();
+}
+
+// Middleware que conta o número de requisições
+function logCounter(req, res, next) {
+  numOfReqs++;
+
+  console.log(`Número de requisições: ${numOfReqs}`);
+
+  return next();
+}
+
+// Aplicando middleware que conta as requisições
+server.use(logCounter);
+
+// --------- ROTAS ---------
 // Cadastrar um novo projeto
 server.post("/projects", (req, res) => {
   const { id, title } = req.body;
@@ -29,24 +50,41 @@ server.get("/projects", (req, res) => {
 });
 
 // Editar título do projeto
-server.put("/projects/:id", (req, res) => {
-  const { id } = req.body;
+server.put("/projects/:id", checkProjectExists, (req, res) => {
+  const { id } = req.params;
+  const { title } = req.body;
 
-  const obj = projects.filter(ob => ob.id === id);
+  const project = projects.find(p => p.id === id);
 
-  obj.title = req.body.title;
+  project.title = title;
 
-  return res.json(projects);
+  return res.json(project);
 });
 
 // Deletar projeto
-server.delete("/projects/:id", (req, res) => {
+server.delete("/projects/:id", checkProjectExists, (req, res) => {
   const { id } = req.params;
-  const projectIndex = projects.findIndex(p => p.id === id);
 
-  projects.splice(projectIndex, 1);
+  const index = projects.findIndex(p => p.id === id);
+  console.log(index);
+
+  projects.splice(index, 1);
 
   return res.send();
 });
 
-server.listen(5000, console.log("Servidor rodando"));
+// Tasks
+server.post("/projects/:id/tasks", checkProjectExists, (req, res) => {
+  const { id } = req.params;
+  const { title } = req.body;
+
+  const project = projects.find(p => p.id === id);
+
+  project.tasks.push(title);
+
+  return res.json(project);
+});
+
+// Conexão servidor
+const PORT = 5000;
+server.listen(PORT, () => console.log(`Servidor conectado na porta ${PORT}`));
